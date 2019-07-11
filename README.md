@@ -1,1 +1,1 @@
-AC-PIZZA
+Project for the Computer Architecture course

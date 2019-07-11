@@ -1,0 +1,141 @@
+C51 COMPILER V9.57.0.0   3PROJ                                                             06/02/2018 00:04:39 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE 3PROJ
+OBJECT MODULE PLACED IN .\Objects\3proj.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE 3proj.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\3pr
+                    -oj.lst) TABS(2) OBJECT(.\Objects\3proj.obj)
+
+line level    source
+
+   1          #include <reg51.h>
+   2          #define fimTempo 100 //timer = 0.2ms -> fimTempo=100*0.2ms=20ms
+   3          #define zero 3 //3*0.2ms=0.6ms -> 0�
+   4          #define centoOitenta 12 //12*0.2=2.4ms -> 180�
+   5          #define atraso 20
+   6          bit led = 0; //pino do led
+   7          bit var;
+   8          bit varAnt = 1;
+   9          sbit servo = P1^0;//pino de controlo do servo motor
+  10          sbit ledp = P1^1; 
+  11          unsigned char conta = 0; //contador que incrementa a cada 200us
+  12          unsigned char limite = 0;
+  13          unsigned char conta2=0;
+  14          unsigned char referencia = zero; //o servo motor come�a nos 0�
+  15          
+  16          
+  17          //declara��o de fun��es
+  18          void Init(void);
+  19          
+  20          void Init(void)
+  21          {
+  22   1      //Configuracao Registo IE
+  23   1      EA = 1; //ativa interrupcoes globais
+  24   1      ET0= 1; 
+  25   1      EX0 = 1;  // ativa interrupcao externa 0
+  26   1      //Configuracao Registo TMOD
+  27   1      TMOD &= 0xF0; //limpa os 4 bits do timer 0 (8 bits � auto reload)
+  28   1      TMOD |= 0x02; //modo 2 do timer 0
+  29   1      //Configuracao Timer 0
+  30   1      TH0 = 0x37; //Timer 0 - 200us
+  31   1      TL0 = 0x37;
+  32   1      //Configuracao Registo TCON
+  33   1      TR0 = 1; //comeca o timer 0
+  34   1      IT0 = 0; //interrupcao externa ativa quando esta a 0
+  35   1      }
+  36          
+  37          //interrupcao externa
+  38          void External0_ISR(void) interrupt 0
+  39          {
+  40   1      led = 1; //assinala que o sensor foi ativado
+  41   1      EX0=0; //desliga as interrupçoes externas
+  42   1      }
+  43          
+  44          //interrupcao tempo
+  45          void Timer0_ISR(void) interrupt 1
+  46          {
+  47   1      conta++; //incrementa a cada contagem de 200us
+  48   1        var=~varAnt;
+  49   1      }
+  50          
+  51          void main(void)
+  52          {
+  53   1      //inicializa��es
+  54   1      Init();
+C51 COMPILER V9.57.0.0   3PROJ                                                             06/02/2018 00:04:39 PAGE 2   
+
+  55   1      
+  56   1      while(1) //loop infinito
+  57   1      {
+  58   2        if(var != varAnt){
+  59   3          var = varAnt;
+  60   3      if(conta == referencia){
+  61   4      servo =0; //coloca a sa�da a 0 at� atingir os 20ms
+  62   4        
+  63   4      }
+  64   3      //atingiu os 20ms
+  65   3      if(conta == fimTempo)
+  66   3      {
+  67   4      led=0; //coloca a variavel a 0 antes de analisar se houve interrupçao
+  68   4      EX0 = 1 ; //ativa as interrupcoes externas
+  69   4      conta = 0; 
+  70   4      servo =1; //impulso positivo at� atingir o valor de referencia
+  71   4      conta2++ ;
+  72   4        
+  73   4      }
+  74   3      
+  75   3      
+  76   3        
+  77   3      if(atraso == conta2)
+  78   3      {
+  79   4      if(led == 0)
+  80   4      {
+  81   5        ledp = 1; // desliga o led
+  82   5      if(referencia == zero)
+  83   5      { 
+  84   6        limite = 0; //como esta a zero a referencia incrementa
+  85   6      }
+  86   5      if(referencia == centoOitenta)
+  87   5      {
+  88   6        limite = 1; // como esta a 1 a referencia decrementa
+  89   6      }
+  90   5      
+  91   5      if(limite==1)
+  92   5      {
+  93   6        referencia--; // anda em direcao ao zero
+  94   6      }
+  95   5      if(limite==0)
+  96   5      {
+  97   6        referencia++; //anda em direcao ao 180
+  98   6      }
+  99   5      conta2=0;
+ 100   5      
+ 101   5      }
+ 102   4      
+ 103   4      if(led == 1)
+ 104   4      {
+ 105   5      referencia = referencia; //mantem o sinal de tempo no mesmo sitio
+ 106   5      ledp=0;                  //liga o led
+ 107   5        conta2=0;              
+ 108   5      }
+ 109   4      
+ 110   4      }
+ 111   3      }
+ 112   2      }
+ 113   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+C51 COMPILER V9.57.0.0   3PROJ                                                             06/02/2018 00:04:39 PAGE 3   
+
+   CODE SIZE        =    130    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      4    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

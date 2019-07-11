@@ -1,0 +1,204 @@
+A51 MACRO ASSEMBLER  3PROJ                                                                06/02/2018 01:32:34 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.2.7.0
+OBJECT MODULE PLACED IN .\Objects\3proj.obj
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE ..\3proj.asm SET(SMALL) DEBUG PRINT(.\Listings\3proj.lst) OBJECT(.\Obje
+                      cts\3proj.obj) EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ;Definição de constantes
+  0037                 2     TempoL EQU 0x37 ; Valor do byte menos significativo para o temporizador
+  0037                 3     TempoH EQU 0x37 ; Valor do byte mais significativo para o temporizador
+  0064                 4     fimTempo EQU 100 ; Número de contagens de 20 ms para contar 0,5s (50d = 32h)
+  0003                 5     referencia EQU 3 ; valor da referencia
+  0000                 6     limite EQU 0 ; var aux
+  0003                 7     zero EQU 3 ; No arranque do programa indica que não há deslocamentos
+  000C                 8     centoOitenta EQU 12 ; Indica que é para deslocar para a esquerda
+  000F                 9     atraso EQU 15
+  0090                10     servo EQU P1.0 ; pin do servo
+  0091                11     led EQU P1.1 ; pin do led
+                      12     
+                      13     
+----                  14     CSEG AT 0000h
+0000 804E             15     JMP Inicio
+                      16     
+                      17     ; Se ocorrer a interrupção externa 0
+----                  18     CSEG AT 0003h
+0003 01D5             19     JMP InterrupcaoExt0
+                      20     ; Tratamento da interrupção de temporização 0, para contar 20ms
+                      21     
+----                  22     CSEG AT 000Bh
+000B 01DB             23     JMP InterrupcaoTemp0
+                      24     
+----                  25     CSEG AT 0050h
+0050                  26     Inicio:
+0050 758107           27     MOV SP, #7 ; endereço inicial da stack point
+0053 11B0             28     Call Inicializacoes ; Chamada a rotina inicializações
+0055 11C5             29     Call PrioridadeInterrupcoes ; Rotina para definir as prioridades das interrupções
+0057 11BF             30     Call ActivaInterrupcoes ; Rotina para ativar as interrupçõe
+0059 11C9             31     CALL ActivaTemporizador ; ativa temporizador
+                      32     
+                      33     
+                      34     
+                      35     ; apenas entra no ciclo se o conta tiver sido incrementado
+005B                  36     Espera:
+005B EE               37     MOV A, R6
+005C 75F000           38     MOV B, #0
+005F B5F002           39     CJNE A, B , Conta
+0062 80F7             40     JMP Espera ; continua no ciclo ate conta ser incrementado
+                      41     
+                      42     ; if(conta == referencia)
+0064                  43     Conta:
+0064 7E00             44     MOV R6, #0  ; var=varAnt
+0066 EA               45     MOV A, R2 ; a = conta
+0067 89F0             46     MOV B, R1 ; b = referencia
+0069 B5F002           47     CJNE A, B, FTempo
+006C C290             48     CLR servo ; poe o sinal do servo a 0 ate chegar aos 20ms
+                      49     
+                      50     ; if(conta == fimTempo)
+006E                  51     FTempo:
+006E EA               52     MOV A, R2 ;a=conta
+006F 75F064           53     MOV B, #fimTempo ; b=fimTempo
+0072 B5F00A           54     CJNE A, B, AtrasoL
+0075 7C00             55     MOV R4, #0 ; poe o sianl de controlo da int externa a 0 antes de analisar
+0077 75A883           56     MOV IE, #10000011b ; volta a ligar int externas
+007A 7A00             57     MOV R2, #0 ; conta = 0;
+A51 MACRO ASSEMBLER  3PROJ                                                                06/02/2018 01:32:34 PAGE     2
+
+007C D290             58     SETB servo ; impulso positivo ate atingir o valor de referencia
+007E 0B               59     INC R3 ; conta2++
+                      60     
+                      61     ;if(conta2==atraso)
+007F                  62     AtrasoL:
+007F EB               63     MOV A, R3 ; a=conta2
+0080 75F00F           64     MOV B, #atraso ; b=atraso
+0083 B5F0D5           65     CJNE A, B, Espera
+0086 EC               66     MOV A, R4 ; a= led 
+0087 7021             67     JNZ TrataInt ; liga o led e conta2=0
+0089 D291             68     SETB led  ; desliga o led
+008B E9               69     MOV A, R1 ; a=referencia
+008C 88F0             70     MOV B, R0 ; b= zero
+008E B5F004           71     CJNE A , B , LimZero ;poe limite a zero
+0091 7F00             72     MOV R7, #0
+0093 8008             73     JMP Movimento
+                      74     
+                      75     ;verifica limite
+0095                  76     LimZero:
+0095 E9               77     MOV A, R1 ;a=referencia
+0096 8DF0             78     MOV B, R5 ;b=centoOitenta
+0098 B5F002           79     CJNE A, B, Movimento 
+009B 7F01             80     MOV R7, #1
+                      81     
+009D                  82     Movimento:
+009D EF               83     MOV A, R7 ; a=limite
+009E 7005             84     JNZ Decrementa 
+00A0 09               85     INC R1 ; referencia++
+00A1 7B00             86     MOV R3, #0
+00A3 80B6             87     JMP Espera
+                      88     
+00A5                  89     Decrementa:
+00A5 19               90     DEC R1 ;referencia--
+00A6 7B00             91     MOV R3, #0
+00A8 80B1             92     JMP Espera 
+                      93     
+00AA                  94     TrataInt:
+00AA C291             95     CLR led
+00AC 7B00             96     MOV R3, #0
+00AE 80AB             97     JMP Espera
+                      98     
+                      99     ;Rotina inicializações
+00B0                 100     Inicializacoes:
+00B0 7803            101     MOV R0, #zero ; Estado inicial
+00B2 7903            102     MOV R1, #referencia
+00B4 D291            103     SETB led
+00B6 7A00            104     MOV R2, #0 ; inicializa conta
+00B8 7B00            105     MOV R3, #0 ; incializa conta2
+00BA 7D0C            106     MOV R5, #centoOitenta
+00BC 7F00            107     MOV R7, #limite ; inicializa limite
+00BE 22              108     RET
+                     109     
+                     110     ;Rotina para ativar a interrupção externa e overflow do temporizador
+00BF                 111     ActivaInterrupcoes:
+00BF 75A883          112     MOV IE, #10000011b ; Activa as interrupções timer 0 e externa 0
+00C2 C288            113     CLR IT0 ; A interrupção externa vai ser detectada enquanto estiver a 0
+00C4 22              114     RET
+                     115     
+                     116     ; Definição da rotina de prioridades
+00C5                 117     PrioridadeInterrupcoes:
+00C5 75B802          118     MOV IP, #00000010b ; o timer 0 tem prioridade mais elevada
+00C8 22              119     RET
+                     120     
+                     121     ; Rotina de ativação de temporizador
+00C9                 122     ActivaTemporizador:
+00C9 D28C            123     SETB TR0 ; Activa o temporizador 0, para fazer contagens de 20 ms (Clk de 12MHz)
+A51 MACRO ASSEMBLER  3PROJ                                                                06/02/2018 01:32:34 PAGE     3
+
+00CB 758902          124     MOV TMOD, #00000010b ; Activa temporizador no modo de leitura de 16 bits
+00CE 758A37          125     MOV TL0, #TempoL ; Valor do byte menos significativo
+00D1 758C37          126     MOV TH0, #TempoH ; Valor do byte mais significativo
+00D4 22              127     RET
+                     128     
+                     129     ;Tratamento da Interrupção externa
+00D5                 130     InterrupcaoExt0:
+00D5 75A882          131     MOV IE, #10000010b ; descliga as interrupçoes externas
+00D8 7C01            132     MOV R4, #1 ; manda sinal de controlo para dizer que ouve interrupcao externa
+00DA 32              133     RETI
+                     134     
+                     135     ; Tratamento da Interrupção de fim de contagem (quando ocorre overflow)
+00DB                 136     InterrupcaoTemp0:
+00DB 0A              137     INC R2 ; incrementa conta
+00DC 7E01            138     MOV R6, #1 ; var=~varAnt
+00DE 32              139     RETI
+                     140     
+                     141     End
+A51 MACRO ASSEMBLER  3PROJ                                                                06/02/2018 01:32:34 PAGE     4
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E                 T Y P E  V A L U E   ATTRIBUTES
+
+ACTIVAINTERRUPCOES . .  C ADDR   00BFH   A   
+ACTIVATEMPORIZADOR . .  C ADDR   00C9H   A   
+ATRASO . . . . . . . .  N NUMB   000FH   A   
+ATRASOL. . . . . . . .  C ADDR   007FH   A   
+B. . . . . . . . . . .  D ADDR   00F0H   A   
+CENTOOITENTA . . . . .  N NUMB   000CH   A   
+CONTA. . . . . . . . .  C ADDR   0064H   A   
+DECREMENTA . . . . . .  C ADDR   00A5H   A   
+ESPERA . . . . . . . .  C ADDR   005BH   A   
+FIMTEMPO . . . . . . .  N NUMB   0064H   A   
+FTEMPO . . . . . . . .  C ADDR   006EH   A   
+IE . . . . . . . . . .  D ADDR   00A8H   A   
+INICIALIZACOES . . . .  C ADDR   00B0H   A   
+INICIO . . . . . . . .  C ADDR   0050H   A   
+INTERRUPCAOEXT0. . . .  C ADDR   00D5H   A   
+INTERRUPCAOTEMP0 . . .  C ADDR   00DBH   A   
+IP . . . . . . . . . .  D ADDR   00B8H   A   
+IT0. . . . . . . . . .  B ADDR   0088H.0 A   
+LED. . . . . . . . . .  B ADDR   0090H.1 A   
+LIMITE . . . . . . . .  N NUMB   0000H   A   
+LIMZERO. . . . . . . .  C ADDR   0095H   A   
+MOVIMENTO. . . . . . .  C ADDR   009DH   A   
+P1 . . . . . . . . . .  D ADDR   0090H   A   
+PRIORIDADEINTERRUPCOES  C ADDR   00C5H   A   
+REFERENCIA . . . . . .  N NUMB   0003H   A   
+SERVO. . . . . . . . .  B ADDR   0090H.0 A   
+SP . . . . . . . . . .  D ADDR   0081H   A   
+TEMPOH . . . . . . . .  N NUMB   0037H   A   
+TEMPOL . . . . . . . .  N NUMB   0037H   A   
+TH0. . . . . . . . . .  D ADDR   008CH   A   
+TL0. . . . . . . . . .  D ADDR   008AH   A   
+TMOD . . . . . . . . .  D ADDR   0089H   A   
+TR0. . . . . . . . . .  B ADDR   0088H.4 A   
+TRATAINT . . . . . . .  C ADDR   00AAH   A   
+ZERO . . . . . . . . .  N NUMB   0003H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
